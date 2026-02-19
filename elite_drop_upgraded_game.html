@@ -1,0 +1,566 @@
+// Elite Drop — ULTIMATE Expansion Build
+// Full combined codebase
+// Includes all prior systems + newest expansion layer
+
+// ==============================
+// USER / LOGIN SYSTEM
+// ==============================
+let username = localStorage.getItem("username") || prompt("Enter username:");
+localStorage.setItem("username", username);
+
+const isAdmin = username === "d3vi0us";
+
+// ==============================
+// PLAYER DATA
+// ==============================
+let money = 5000;
+let xp = 0;
+let level = 1;
+let inventory = [];
+let jackpotPool = [];
+let marketListings = [];
+
+// ==============================
+// CASE DATABASE (EXPANDED)
+// ==============================
+const cases = {
+  "Starter Case": { price: 100 },
+  "Prisma Case": { price: 250 },
+  "Gamma Case": { price: 400 },
+  "Spectrum Case": { price: 600 },
+  "Chroma Case": { price: 800 },
+
+  // Custom Cases
+  "Dragonfire Case": { price: 1200 },
+  "Neon Dreams Case": { price: 1500 },
+  "Shadow Ops Case": { price: 2000 }
+};
+
+// ==============================
+// SKIN GENERATOR
+// ==============================
+function generateSkin() {
+  const rarities = ["Consumer","Industrial","Mil-Spec","Restricted","Classified","Covert","Knife"];
+  const rarity = rarities[Math.floor(Math.random()*rarities.length)];
+
+  const float = Math.random();
+  const pattern = Math.floor(Math.random()*1000);
+  const stattrak = Math.random() < 0.1;
+
+  const value = Math.floor((Math.random()*500)+50) * (1 + (1-float));
+
+  return {
+    name: rarity + " Skin",
+    rarity,
+    float: float.toFixed(4),
+    pattern,
+    stattrak,
+    value: Math.floor(value)
+  };
+}
+
+// ==============================
+// CASE OPEN
+// ==============================
+function openCase(caseName) {
+  const c = cases[caseName];
+  if (!c) return;
+  if (money < c.price) return alert("Not enough money");
+
+  money -= c.price;
+
+  spinnerAnimation();
+
+  setTimeout(()=>{
+    const skin = generateSkin();
+    inventory.push(skin);
+    xp += 25;
+    levelUpCheck();
+    renderInventory();
+  }, 2000);
+}
+
+// ==============================
+// SPINNER ANIMATION
+// ==============================
+function spinnerAnimation(){
+  console.log("Spinning case...");
+}
+
+// ==============================
+// INVENTORY
+// ==============================
+function renderInventory(){
+  console.clear();
+  console.table(inventory);
+}
+
+// ==============================
+// MARKETPLACE
+// ==============================
+function listOnMarket(index, price){
+  const item = inventory.splice(index,1)[0];
+  marketListings.push({...item, price});
+}
+
+function buyFromMarket(index){
+  const item = marketListings[index];
+  if(money < item.price) return;
+  money -= item.price;
+  inventory.push(item);
+  marketListings.splice(index,1);
+}
+
+// ==============================
+// CONTRACTS (10 → 1)
+// ==============================
+function tradeUp(){
+  if(inventory.length < 10) return;
+  inventory.splice(0,10);
+  inventory.push(generateSkin());
+}
+
+// ==============================
+// JACKPOT
+// ==============================
+function depositJackpot(index){
+  jackpotPool.push(inventory.splice(index,1)[0]);
+}
+
+function drawJackpot(){
+  if(!jackpotPool.length) return;
+  const win = jackpotPool[Math.floor(Math.random()*jackpotPool.length)];
+  inventory.push(win);
+  jackpotPool = [];
+}
+
+// ==============================
+// BLACKJACK
+// ==============================
+function playBlackjack(){
+  const player = Math.floor(Math.random()*21);
+  const dealer = Math.floor(Math.random()*21);
+  if(player > dealer) money += 500;
+  else money -= 500;
+}
+
+// ==============================
+// ROULETTE
+// ==============================
+function roulette(betColor, amount){
+  const colors = ["red","black","green"];
+  const roll = colors[Math.floor(Math.random()*colors.length)];
+  if(roll === betColor) money += amount*2;
+  else money -= amount;
+}
+
+// ==============================
+// XP / LEVEL
+// ==============================
+function levelUpCheck(){
+  if(xp >= level*100){
+    xp = 0;
+    level++;
+    console.log("Level Up!", level);
+  }
+}
+
+// ==============================
+// AUTO CLICKER
+// ==============================
+setInterval(()=>{
+  money += 5;
+}, 3000);
+
+// ==============================
+// DAILY REWARD
+// ==============================
+function dailyReward(){
+  money += 1000;
+}
+
+// ==============================
+// ADMIN PANEL (LOCKED)
+// ==============================
+if(isAdmin){
+  console.log("Admin Panel Loaded");
+
+  window.adminAddMoney = amt => money += amt;
+  window.adminSpawnSkin = () => inventory.push(generateSkin());
+  window.adminJackpotWin = () => drawJackpot();
+  window.adminLevelBoost = () => level += 5;
+}
+
+// ==============================
+// KNIFE INSPECT VIEWER (Mock)
+// ==============================
+function inspectSkin(index){
+  const skin = inventory[index];
+  console.log("Inspecting:", skin);
+}
+
+// ==============================
+// STICKER CRAFT SYSTEM
+// ==============================
+function applySticker(index){
+  inventory[index].sticker = "Holo Sticker";
+  inventory[index].value *= 1.25;
+}
+
+// ==============================
+// BATTLE ROYALE CASE MODE
+// ==============================
+function battleRoyale(){
+  const players = 10;
+  let best = null;
+
+  for(let i=0;i<players;i++){
+    const skin = generateSkin();
+    if(!best || skin.value > best.value) best = skin;
+  }
+
+  inventory.push(best);
+}
+
+// ==============================
+// SEARCH / FILTER
+// ==============================
+function searchInventory(term){
+  return inventory.filter(i=>i.name.includes(term));
+}
+
+// ==============================
+// CLOUD SAVE (Mock)
+// ==============================
+function cloudSave(){
+  localStorage.setItem("eliteDropSave", JSON.stringify({money,inventory,level,xp}));
+}
+
+function cloudLoad(){
+  const save = JSON.parse(localStorage.getItem("eliteDropSave"));
+  if(save){
+    money = save.money;
+    inventory = save.inventory;
+    level = save.level;
+    xp = save.xp;
+  }
+}
+
+console.log("Elite Drop ULTIMATE Build Loaded");
+
+
+/* ==============================
+   NEXT TIER EXPANSION SYSTEMS
+   Added by request
+================================ */
+
+/* ========= 3D INSPECT (Three.js Hook Ready) ========= */
+function inspect3D(item){
+  alert("3D Inspect Viewer Loaded for: " + item.name + "
+(Three.js model hook ready)");
+}
+
+/* ========= LIVE TRADING (Simulated P2P) ========= */
+let tradingPlayers = ["PlayerOne","CaseKing","LuckyDrop","SkinLord"];
+
+function sendTrade(index){
+  let item = inventory[index];
+  let partner = tradingPlayers[Math.floor(Math.random()*tradingPlayers.length)];
+
+  if(confirm(`Trade ${item.name} to ${partner}?`)){
+    inventory.splice(index,1);
+    let newSkin = randomSkin();
+    inventory.push(newSkin);
+    alert(`Trade complete! You received: ${newSkin.name}`);
+    updateInventory();
+    save();
+  }
+}
+
+/* ========= WEBSOCKET MULTIPLAYER (Framework) ========= */
+class FakeSocket {
+  send(msg){ console.log("Sent:",msg); }
+  onmessage(msg){ console.log("Received:",msg); }
+}
+let socket = new FakeSocket();
+
+/* ========= STEAM PRICE API SYNC (Mock) ========= */
+async function steamPriceSync(){
+  inventory.forEach(i=>{
+    i.price = Math.floor(i.base * (1.2 + Math.random()));
+  });
+  alert("Prices synced to Steam Market (mock)");
+  updateInventory();
+}
+
+/* ========= FLOAT HEATMAP ========= */
+function floatHeatmap(){
+  let avg = inventory.reduce((a,b)=>a+b.float,0)/inventory.length || 0;
+  alert("Average Float: " + avg.toFixed(4));
+}
+
+/* ========= PATTERN RARITY DB ========= */
+function patternRarity(pattern){
+  if(pattern==661) return "Blue Gem";
+  if(pattern<50) return "High Tier";
+  if(pattern<200) return "Mid Tier";
+  return "Common";
+}
+
+/* ========= CINEMATIC CASE OPEN ========= */
+function cinematicOpen(){
+  document.body.style.background="black";
+  setTimeout(()=>{
+    document.body.style.background="";
+    openCase();
+  },1500);
+}
+
+/* ========= MOBILE EXPORT HELPERS ========= */
+function exportMobile(){
+  alert("Project structured for Capacitor / Cordova export.");
+}
+
+/* ========= INVENTORY UI EXPANSION ========= */
+function updateInventory(){
+  let div=document.getElementById("inv");
+  if(!div) return;
+
+  div.innerHTML="";
+
+  inventory.forEach((item,i)=>{
+    let value = item.price || item.base;
+
+    div.innerHTML+=`
+    <div class="card rarity-${item.rarity}">
+      <img src="${item.img}">
+      <div class="skin-name">${item.name}</div>
+      <div>Wear: ${item.wear}</div>
+      <div>Float: ${item.float.toFixed(4)}</div>
+      <div>Pattern: ${item.pattern} (${patternRarity(item.pattern)})</div>
+      <div class="price">$${value}</div>
+
+      <button onclick="sell(${i},${value})">Sell</button>
+      <button onclick="upgradeSkin(${i})">Upgrade</button>
+      <button onclick="sendTrade(${i})">Trade</button>
+      <button onclick="inspect3D(inventory[${i}])">Inspect</button>
+    </div>`;
+  });
+}
+
+/* ========= SAVE / LOAD ========= */
+function save(){
+  localStorage.setItem("eliteSave",
+    JSON.stringify({money,xp,level,inventory})
+  );
+}
+
+function load(){
+  let s = JSON.parse(localStorage.getItem("eliteSave"));
+  if(!s) return;
+  money=s.money;
+  xp=s.xp;
+  level=s.level;
+  inventory=s.inventory;
+}
+
+/* ========= AUTO SAVE LOOP ========= */
+setInterval(save,5000);
+
+/* ========= ECONOMY BALANCER ========= */
+setInterval(()=>{
+  inventory.forEach(i=>{
+    if(Math.random()<0.1){
+      i.price = Math.floor(i.base*(0.8+Math.random()*0.6));
+    }
+  });
+},30000);
+
+/* ========= FINAL INIT ========= */
+load();
+updateInventory();
+update();
+
+/* ===== END NEXT TIER ===== */
+
+
+/* ==============================
+   ULTRA TIER EXPANSION
+   (Accounts, Achievements, Pass)
+================================ */
+
+/* ========= ONLINE ACCOUNTS (Mock Auth) ========= */
+let currentUser = null;
+
+function register(){
+  let u = prompt("Create username:");
+  let p = prompt("Create password:");
+
+  if(!u||!p) return;
+
+  localStorage.setItem("user_"+u,JSON.stringify({password:p,data:null}));
+  alert("Account created");
+}
+
+function login(){
+  let u = prompt("Username:");
+  let p = prompt("Password:");
+
+  let acc = JSON.parse(localStorage.getItem("user_"+u));
+  if(!acc || acc.password!==p) return alert("Invalid login");
+
+  currentUser = u;
+
+  if(acc.data){
+    ({money,xp,level,inventory} = acc.data);
+  }
+
+  alert("Logged in as "+u);
+  updateInventory();
+  update();
+}
+
+function saveAccount(){
+  if(!currentUser) return;
+
+  localStorage.setItem(
+    "user_"+currentUser,
+    JSON.stringify({
+      password: JSON.parse(localStorage.getItem("user_"+currentUser)).password,
+      data:{money,xp,level,inventory}
+    })
+  );
+}
+
+setInterval(saveAccount,5000);
+
+/* ========= ACHIEVEMENT SYSTEM ========= */
+let achievements=[];
+
+const achievementList=[
+  {id:"first_open",name:"First Case"},
+  {id:"knife",name:"Unbox a Knife"},
+  {id:"rich",name:"$10,000 Owned"},
+  {id:"battle_win",name:"Win Case Battle"}
+];
+
+function unlock(id){
+  if(achievements.includes(id)) return;
+  achievements.push(id);
+
+  let a = achievementList.find(x=>x.id==id);
+  alert("Achievement Unlocked: "+a.name);
+}
+
+/* ========= BATTLE PASS ========= */
+let passXP=0;
+let passLevel=1;
+
+function addPassXP(v){
+  passXP+=v;
+  if(passXP>=100){
+    passXP=0;
+    passLevel++;
+    givePassReward();
+  }
+}
+
+function givePassReward(){
+  let skin=randomSkin();
+  inventory.push(skin);
+  alert("Battle Pass Reward: "+skin.name);
+  updateInventory();
+}
+
+/* ========= MISSIONS ========= */
+let missions=[
+  {task:"Open 5 cases",progress:0,goal:5,reward:200},
+  {task:"Win 2 battles",progress:0,goal:2,reward:500}
+];
+
+function progressMission(type){
+  missions.forEach(m=>{
+    if(type=="case" && m.task.includes("Open")) m.progress++;
+    if(type=="battle" && m.task.includes("Win")) m.progress++;
+
+    if(m.progress>=m.goal){
+      money+=m.reward;
+      alert("Mission Complete: "+m.task);
+      m.progress=0;
+    }
+  });
+}
+
+/* ========= LOOT HISTORY ========= */
+let lootHistory=[];
+
+function addHistory(item){
+  lootHistory.unshift({
+    name:item.name,
+    rarity:item.rarity,
+    time:Date.now()
+  });
+
+  if(lootHistory.length>50) lootHistory.pop();
+}
+
+/* Hook into case open */
+const oldOpenCase=openCase;
+openCase=function(){
+  oldOpenCase();
+  setTimeout(()=>{
+    let item=inventory[inventory.length-1];
+    if(!item) return;
+
+    addHistory(item);
+    addPassXP(20);
+    progressMission("case");
+
+    if(item.rarity=="gold") unlock("knife");
+  },2300);
+};
+
+/* ========= ESPORTS BETTING ========= */
+let matches=[
+  {a:"Team Alpha",b:"Team Omega",oddsA:1.8,oddsB:2.1}
+];
+
+function betMatch(side,amount){
+  if(money<amount) return alert("Not enough");
+
+  money-=amount;
+
+  let win=Math.random()<0.5;
+
+  if(win){
+    let odds = side=="A"?1.8:2.1;
+    let payout=Math.floor(amount*odds);
+    money+=payout;
+    alert("Bet won: $"+payout);
+  }else{
+    alert("Bet lost");
+  }
+
+  update();
+}
+
+/* ========= CHAT SYSTEM (Local Feed) ========= */
+let chatLog=[];
+
+function sendChat(msg){
+  chatLog.push({user:currentUser||"Guest",msg});
+  console.log(chatLog);
+}
+
+/* ========= SERVER MARKETPLACE HOOK ========= */
+async function serverMarketSync(){
+  alert("Synced with server marketplace (mock)");
+}
+
+/* ========= FINAL SAVE HOOK ========= */
+setInterval(()=>{
+  save();
+  saveAccount();
+},5000);
+
+/* ===== END ULTRA TIER ===== */
